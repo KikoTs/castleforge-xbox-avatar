@@ -23,7 +23,14 @@ namespace XboxAvatar
     /// can be started from here, and the avatar it writes can be loaded without
     /// a restart.
     /// </summary>
-    internal static class AvatarCommands
+    /// <summary>
+    /// Not a static class, deliberately. CommandDispatcher discovers commands
+    /// by reflecting over the runtime type of the object it is given, so the
+    /// [Command] methods have to live on a type it can be handed an instance
+    /// of. The Example mod avoids this by putting its commands directly on the
+    /// mod class; keeping them in their own file costs one instance.
+    /// </summary>
+    internal sealed class AvatarCommands
     {
         internal static readonly (string command, string description)[] Commands =
         {

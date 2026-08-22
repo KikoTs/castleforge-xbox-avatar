@@ -63,18 +63,20 @@ namespace XboxAvatar
                         Directory.CreateDirectory(nativesFolder);
                         string target = Path.Combine(nativesFolder, name);
 
-                        // Rewrite only when the size differs, so a running
-                        // capture cannot be replaced underneath itself on every
-                        // launch, and a locked file is not an error.
-                        if (File.Exists(target) && new FileInfo(target).Length == source.Length)
+                        var buffer = new MemoryStream();
+                        source.CopyTo(buffer);
+                        byte[] payload = buffer.ToArray();
+
+                        // Compare contents, not just length: an update can ship
+                        // a build of exactly the same size, and skipping it
+                        // would leave the old one in place for good. Writing
+                        // only on a real difference also means a capture that
+                        // happens to be running is not disturbed every launch.
+                        if (File.Exists(target) && SameBytes(target, payload))
                         {
                             continue;
                         }
-                        using (var destination = new FileStream(
-                            target, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            source.CopyTo(destination);
-                        }
+                        File.WriteAllBytes(target, payload);
                         written++;
                     }
                 }
@@ -87,6 +89,32 @@ namespace XboxAvatar
             if (written > 0)
             {
                 Log("[XboxAvatar] Extracted " + written + " capture tool(s) to " + nativesFolder + ".");
+            }
+        }
+
+        private static bool SameBytes(string path, byte[] expected)
+        {
+            try
+            {
+                var existing = new FileInfo(path);
+                if (existing.Length != expected.Length)
+                {
+                    return false;
+                }
+                byte[] actual = File.ReadAllBytes(path);
+                for (int index = 0; index < actual.Length; index++)
+                {
+                    if (actual[index] != expected[index])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            catch (IOException)
+            {
+                // In use, most likely by a capture in progress. Leave it.
+                return true;
             }
         }
     }

@@ -18,7 +18,19 @@ internal static class AvatarImporter
 
     // Matches the runtime's Branding block. build.ps1 defines XBOX_AVATAR_BRAND
     // for the standalone build, which ships under its own name.
-#if XBOX_AVATAR_BRAND
+    //
+    // The CastleForge build is the odd one out. Everywhere else this program
+    // sits in the game folder, so it can treat its own directory as the root
+    // and find the avatar folder below it. As a CastleForge mod it is unpacked
+    // into !Mods/XboxAvatar and runs from there, so its own directory already
+    // IS the avatar folder, and the bridge is one level down in Natives. Using
+    // the standalone segments here looked for !Mods/XboxAvatar/Xbox
+    // Avatar/Bridge and reported the bridge as missing.
+#if CASTLEFORGE_BRAND
+    private const string ProductName = "Xbox Avatar";
+    private static readonly string[] AvatarSegments = { };
+    private static readonly string[] BridgeSegments = { "Natives" };
+#elif XBOX_AVATAR_BRAND
     private const string ProductName = "Xbox Avatar";
     private static readonly string[] AvatarSegments = { "Xbox Avatar" };
     private static readonly string[] BridgeSegments = { "Xbox Avatar", "Bridge" };

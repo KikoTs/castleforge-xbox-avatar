@@ -150,7 +150,9 @@ New-Item -ItemType Directory -Force -Path $staging | Out-Null
 $importerOut = Join-Path $staging 'Import Xbox Avatar.exe'
 $importerArguments = @(
     '/nologo', '/target:winexe', '/optimize+', '/platform:anycpu', '/langversion:7.3',
-    '/define:XBOX_AVATAR_BRAND',
+    # The importer runs from !Mods/XboxAvatar, not the game root, so it needs
+    # the CastleForge layout for the same reason the runtime does.
+    '/define:CASTLEFORGE_BRAND',
     "/out:$importerOut",
     '/reference:System.Drawing.dll',
     '/reference:System.Windows.Forms.dll',
@@ -218,7 +220,8 @@ $testProjects = @(
     @{ Name = 'AvatarProtocolSmoke';  Source = 'tests\Protocol\AvatarProtocolSmoke.cs';        References = @() },
     @{ Name = 'AvatarMessageIdSmoke'; Source = 'tests\Protocol\AvatarMessageIdSmoke.cs';       References = @() },
     @{ Name = 'AvatarAttachmentSmoke';Source = 'tests\Attachment\AvatarAttachmentSmoke.cs';    References = @($commonDll, $xnaFramework) },
-    @{ Name = 'FirstPersonHandSmoke'; Source = 'tests\FirstPerson\FirstPersonHandSmoke.cs';    References = @($commonDll, $xnaFramework) }
+    @{ Name = 'FirstPersonHandSmoke'; Source = 'tests\FirstPerson\FirstPersonHandSmoke.cs';    References = @($commonDll, $xnaFramework) },
+    @{ Name = 'ModPackagingSmoke';    Source = 'tests\Packaging\ModPackagingSmoke.cs';        References = @($modLoaderExtensions) }
 )
 foreach ($test in $testProjects) {
     $testOut = Join-Path $bin ($test.Name + '.exe')
@@ -245,7 +248,13 @@ $smokeTests = @(
     @{ Name = 'AvatarProtocolSmoke';   Arguments = @($modOut, $testAvatar, $gameRoot); Needs = $testAvatar },
     @{ Name = 'AvatarMessageIdSmoke';  Arguments = @($gameExe, $commonDll, $modOut);   Needs = $null },
     @{ Name = 'AvatarAttachmentSmoke'; Arguments = @($modOut, $testAvatar, $gameRoot); Needs = $testAvatar },
-    @{ Name = 'FirstPersonHandSmoke';  Arguments = @($modOut, $testAvatar, $gameRoot); Needs = $testAvatar }
+    @{ Name = 'FirstPersonHandSmoke';  Arguments = @($modOut, $testAvatar, $gameRoot); Needs = $testAvatar },
+    # Needs no avatar: it checks how the mod is put together, not what it draws.
+    # It is told whether capture was meant to be in this build, so a bridge left
+    # out on purpose passes while one lost by accident does not.
+    @{ Name = 'ModPackagingSmoke'
+       Arguments = @($modOut) + $(if ($BridgeDirectory) { @('--expect-capture') } else { @() })
+       Needs = $null }
 )
 foreach ($smokeTest in $smokeTests) {
     $smokeExe = Join-Path $bin ($smokeTest.Name + '.exe')

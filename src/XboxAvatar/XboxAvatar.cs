@@ -67,7 +67,11 @@ namespace XboxAvatar
                     AppDomain.CurrentDomain.BaseDirectory,
                     "!Mods",
                     typeof(XboxAvatar).Namespace);
-                int written = EmbeddedExporter.ExtractFolder("Tools", folder);
+                // overwrite: an update ships a new importer, and the default is
+                // to skip anything already on disk - which would leave the
+                // previous version in place and looking for files where the
+                // previous version kept them.
+                int written = EmbeddedExporter.ExtractFolder("Tools", folder, null, true);
                 if (written > 0)
                 {
                     Log("[XboxAvatar] Extracted " + written + " tool file(s) to " + folder + ".");
@@ -87,9 +91,13 @@ namespace XboxAvatar
 
             // Chat commands, so capturing and reloading an avatar never needs the
             // game to be closed.
-            _dispatcher = new CommandDispatcher(this);
+            // The dispatcher reflects over the type of what it is given, and
+            // the commands live on AvatarCommands rather than on this class.
+            _dispatcher = new CommandDispatcher(new AvatarCommands());
             ChatInterceptor.RegisterHandler(raw => _dispatcher.TryInvoke(raw));
             HelpRegistry.Register(Name, AvatarCommands.Commands);
+            Log("[XboxAvatar] Commands registered: " +
+                string.Join(" ", _dispatcher.RegisteredCommands()));
 
             Log("[XboxAvatar] " + Describe() + " loaded.");
         }
