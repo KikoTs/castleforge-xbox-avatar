@@ -21,15 +21,24 @@ jobs:
           fi
           echo "Source boundary audit passed."
 
-  build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - name: Build setup and probe
-        shell: pwsh
+      - name: Reject decompiled game source
+        shell: bash
         run: |
-          dotnet build src/Setup/CastleMinerZAvatarSetup.csproj -c Release
-          dotnet build src/Probe/AvatarCompatProbe.csproj -c Release
+          set -euo pipefail
+          # The runtime legitimately names game types it calls. What must never
+          # appear is the game's own source: a namespace declaration for one of
+          # its assemblies means a decompiled file was committed.
+          leaked="$(git ls-files -- '*.cs' | xargs -r grep -lE '^\s*namespace\s+(DNA|DNA\.[A-Za-z.]+)\s*$' || true)"
+          if [[ -n "$leaked" ]]; then
+            echo "These files declare a game namespace, so they are decompiled game source:"
+            echo "$leaked"
+            exit 1
+          fi
+          echo "No decompiled game source is tracked."
+
+# There is deliberately no build job. Compiling this mod needs CastleMinerZ.exe,
+# DNA.Common.dll, the XNA GAC and CastleForge's loader assemblies, none of which
+# may be committed here or fetched in CI. A build job would either need those
+# checked in - defeating the audit above - or be a green tick that compiled
+# nothing. Building and the four smoke tests run locally through build.ps1,
+# against your own install.
