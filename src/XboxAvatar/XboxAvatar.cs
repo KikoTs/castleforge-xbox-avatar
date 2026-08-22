@@ -14,6 +14,7 @@ using DNA.CastleMinerZ;
 using DNA.Input;
 using Microsoft.Xna.Framework;
 using ModLoader;
+using ModLoaderExt;
 
 using static ModLoader.LogSystem;
 
@@ -34,6 +35,11 @@ namespace XboxAvatar
     [RequiredDependencies("ModLoaderExtensions")]
     public class XboxAvatar : ModBase
     {
+        // Built in Start rather than the constructor: the loader creates every
+        // mod before it starts any of them, and the dispatcher should not be
+        // taking commands until the patches behind them are in place.
+        private CommandDispatcher _dispatcher;
+
         public XboxAvatar() : base("Xbox Avatar", new Version("1.0.0.0"))
         {
             // Unpacks the capture bridge and importer beside this mod, and
@@ -66,6 +72,7 @@ namespace XboxAvatar
                 {
                     Log("[XboxAvatar] Extracted " + written + " tool file(s) to " + folder + ".");
                 }
+                CaptureTools.Extract(folder);
             }
             catch (Exception error)
             {
@@ -77,6 +84,12 @@ namespace XboxAvatar
             // have to be in place before a player is constructed.
             AvatarMessageRegistration.Register();
             GamePatches.ApplyAllPatches();
+
+            // Chat commands, so capturing and reloading an avatar never needs the
+            // game to be closed.
+            _dispatcher = new CommandDispatcher(this);
+            ChatInterceptor.RegisterHandler(raw => _dispatcher.TryInvoke(raw));
+            HelpRegistry.Register(Name, AvatarCommands.Commands);
 
             Log("[XboxAvatar] " + Describe() + " loaded.");
         }
@@ -91,6 +104,9 @@ namespace XboxAvatar
         /// </summary>
         public override void Tick(InputManager inputManager, GameTime gameTime)
         {
+            // The importer finishes on another thread; the reload it triggers has
+            // to happen here, where the graphics device belongs.
+            AvatarCommands.PumpImportResult();
             AvatarNetworkBridge.Update();
         }
 

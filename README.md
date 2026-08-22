@@ -16,12 +16,27 @@ no patched executable.
 
 1. Install CastleForge.
 2. Put `XboxAvatar.dll` in the game's `!Mods` folder.
-3. Start the game once. The mod unpacks its importer into
+3. Start the game. The mod unpacks its importer and capture bridge into
    `!Mods/XboxAvatar/`.
-4. Open Xbox Original Avatars, leave the avatar you want on screen, and run
-   `!Mods/XboxAvatar/Import Xbox Avatar.exe`.
+4. Type **`/avatar import`** in chat, leave the avatar you want on screen, and
+   confirm the capture. It loads as soon as the importer closes.
 
 Removing it is deleting `XboxAvatar.dll` and the `!Mods/XboxAvatar` folder.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `/avatar` | What the mod is currently using. |
+| `/avatar import` | Capture your Xbox Original Avatar, and load it when the importer closes. |
+| `/avatar reload` | Re-read `avatar.ocavatar` without restarting, and offer it to everyone in the session. |
+| `/avatar grip <0-1>` | How far the first-person hand closes. |
+
+Capturing runs as a separate process on purpose: the bridge is x64 because the
+Xbox Original Avatars app is, while Castle Miner Z is x86, so the capture cannot
+happen inside the game however convenient that would be. What the mod can do is
+start it for you and pick up the result, which is the part that used to mean
+quitting to the desktop and restarting.
 
 ## Settings
 

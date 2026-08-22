@@ -172,12 +172,17 @@ $resources = @(
 # supplied, and say so plainly when it is not.
 if ($BridgeDirectory) {
     $bridgeRoot = (Resolve-Path -LiteralPath $BridgeDirectory).Path
+    # ".bin" so EmbeddedResolver leaves these alone. It extracts and
+    # LoadLibrary's every ".dll" resource, which is wrong for both of these:
+    # the injector is a program, and the bridge is x64 because it is injected
+    # into the x64 Avatars app, while this game is x86. CaptureTools writes
+    # them out under their real names instead.
     foreach ($name in @('AvatarBridge.dll', 'AvatarBridgeInjector.exe')) {
         $bridgeFile = Join-Path $bridgeRoot $name
         if (-not (Test-Path -LiteralPath $bridgeFile)) {
             throw "-BridgeDirectory does not contain $name."
         }
-        $resources += "/resource:$bridgeFile,XboxAvatar.Natives.$name"
+        $resources += "/resource:$bridgeFile,XboxAvatar.Natives.$name.bin"
     }
     Write-Host '  capture bridge: embedded.' -ForegroundColor Cyan
 } else {

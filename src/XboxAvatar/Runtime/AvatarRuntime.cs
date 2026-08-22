@@ -5790,6 +5790,101 @@ namespace OpenClassic.XboxAvatar
             get { return LocalAssetPath; }
         }
 
+        /// <summary>The folder holding the avatar, its cache and the tools.</summary>
+        internal static string AvatarFolderPath
+        {
+            get { return AvatarFolder; }
+        }
+
+        /// <summary>
+        /// Re-read avatar.ocavatar and apply it without restarting the game.
+        ///
+        /// Importing writes a new file over the old one, and until now the only
+        /// way to see it was to restart: the model was built once when the
+        /// player was constructed, and the snapshot the network serves was
+        /// cached against the file's timestamp. Both are dropped here, the
+        /// local player's model is rebuilt, and every peer that already has the
+        /// old avatar is offered the new one - otherwise everyone else would go
+        /// on seeing the previous one for the rest of the session.
+        ///
+        /// Returns what happened, for the player who asked.
+        /// </summary>
+        internal static string ReloadLocalAvatar()
+        {
+            string path = LocalAssetPath;
+            if (!File.Exists(path))
+            {
+                return "No avatar to load. Run the importer first.";
+            }
+
+            // Force the next send to re-read the file rather than serve the
+            // bytes it cached last time.
+            _localSnapshot = null;
+            LocalSnapshot snapshot = GetLocalSnapshot();
+            if (snapshot == null)
+            {
+                return "The avatar file could not be read.";
+            }
+
+            PlayerBinding local = null;
+            foreach (PlayerBinding binding in Players.Values)
+            {
+                if (binding != null && binding.Gamer != null && binding.Gamer.IsLocal)
+                {
+                    local = binding;
+                    break;
+                }
+            }
+            if (local == null || local.Avatar == null || local.FallbackModel == null)
+            {
+                return "Loaded, and it will be used the next time your player is built.";
+            }
+
+            try
+            {
+                var replacement = new ImportedAvatarModelEntity(
+                    local.FallbackModel, local.Avatar, path);
+                var previous = local.Avatar.ProxyModelEntity as ImportedAvatarModelEntity;
+                local.Avatar.ProxyModelEntity = replacement;
+                if (previous != null && previous != replacement)
+                {
+                    previous.ReleaseGraphicsResources();
+                }
+                local.AppliedHash = HashText(snapshot.Hash);
+                MoveHeldItemAfterModel(local.Avatar);
+            }
+            catch (Exception exception)
+            {
+                ImportedAvatarModelEntity.WriteFailure(exception);
+                return "The avatar failed to load - see renderer.log.";
+            }
+
+            // Offer the new avatar to everyone who can take it. Their own
+            // transfer state for us is dropped first, so a half-finished
+            // transfer of the previous avatar cannot be mistaken for this one.
+            int offered = 0;
+            var peers = new List<NetworkGamer>(PeerReady.Values);
+            foreach (NetworkGamer peer in peers)
+            {
+                if (peer == null || HasLeft(peer))
+                {
+                    continue;
+                }
+                var stale = new List<string>();
+                foreach (KeyValuePair<string, OutgoingOffer> pair in Offers)
+                {
+                    if (pair.Value.Target == peer) { stale.Add(pair.Key); }
+                }
+                foreach (string key in stale) { Offers.Remove(key); }
+                HandleHello(peer);
+                offered++;
+            }
+
+            return offered > 0
+                ? "Avatar reloaded, and offered to " + offered + " player(s)."
+                : "Avatar reloaded.";
+        }
+
         internal static void NoteAppliedAsset(NetworkGamer gamer, string assetPath)
         {
             if (gamer == null || string.IsNullOrEmpty(assetPath))
