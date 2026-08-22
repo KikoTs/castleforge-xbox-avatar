@@ -1,0 +1,31 @@
+# Build outputs
+artifacts/
+bin/
+obj/
+.vs/
+.vscode/
+
+# Locally supplied proprietary dependencies
+CastleMinerZ.exe
+DNA.Common.dll
+*.winmd
+*.ocavatar
+
+# Upstream release payload fetched at build time
+upstream/
+
+# Never commit compiled release files
+*.dll
+*.exe
+*.pdb
+*.lib
+*.exp
+*.obj
+
+# Runtime state
+Cache/
+Backups/
+*.log
+*.dmp
+*.user
+*.suo
